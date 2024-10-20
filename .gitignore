@@ -1,2 +1,4 @@
 .ipynb_checkpoints/
-final_data
+data
+__pycache*
+saved_models
