@@ -3,7 +3,9 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 from networks.UnetNetwork import UNet
-from utils.losses import DiceLoss
+from utils.losses import DiceLoss, jaccard_similarity
+import numpy as np
+import matplotlib.pyplot as plt
 
 class UnetModel(nn.Module):
 
@@ -12,7 +14,7 @@ class UnetModel(nn.Module):
         self.model_configs = configs
         self.network = UNet(configs)
         self.criterion = DiceLoss()
-        self.optimizer = torch.optim.Adam(self.network.parameters(), lr=configs['learning_rate'])
+        self.optimizer = torch.optim.Adam(self.network.parameters(), lr=configs['learning_rate'], weight_decay=configs['regularization'])
 
     def train(self, train_loader, val_loader, configs, device):
         
@@ -32,7 +34,8 @@ class UnetModel(nn.Module):
             train_running_loss = 0
 
             for images, masks in tqdm(train_loader):
-                images = images.to(device)
+                
+                images = images.unsqueeze(0).permute(1,0,2,3).to(device)
                 masks = masks.to(device)
 
                 self.optimizer.zero_grad()
@@ -51,7 +54,7 @@ class UnetModel(nn.Module):
             val_loss = 0
             with torch.no_grad():
                 for val_images, val_masks in val_loader:
-                    val_images = val_images.to(device)
+                    val_images = val_images.unsqueeze(0).permute(1,0,2,3).to(device)
                     val_masks = val_masks.to(device)
 
                     val_output = self.network(val_images)
@@ -79,17 +82,23 @@ class UnetModel(nn.Module):
     def evaluate(self, test_loader, configs, device):
 
         self.network.eval()
-        test_predictions = []
-        test_ground_truths = []
+        test_jaccard_scores = []
         with torch.no_grad():
             checkpointfile = os.path.join(configs["save_dir"], f'{self.model_configs["name"]}-best.ckpt')
             ckpt = torch.load(checkpointfile, map_location="cpu")
             self.network.load_state_dict(ckpt, strict=True)
             print(f"Restored model parameters from {checkpointfile}")
             for test_images, test_masks in test_loader:
-                test_images = test_images.to(device)
+                test_images = test_images.unsqueeze(0).permute(1,0,2,3).to(device)
 
                 test_pred = self.network(test_images)
+                test_pred = (test_pred > 0.5).float()
 
-                test_predictions.append(test_pred.cpu().numpy())
-                test_ground_truths.append(test_masks.cpu().numpy())
+                test_masks = test_masks.unsqueeze(1).to(device)
+
+                for i in range(test_pred.size(0)):
+                    jaccard = jaccard_similarity(test_pred[i], test_masks[i])
+                    test_jaccard_scores.append(jaccard)
+
+        mean_jaccard = sum(test_jaccard_scores) / len(test_jaccard_scores)
+        print("Jaccard similarity score: ", mean_jaccard.item())
