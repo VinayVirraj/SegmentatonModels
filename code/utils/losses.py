@@ -14,3 +14,14 @@ class DiceLoss(nn.Module):
         dice_loss = 1 - dice_coeff
 
         return dice_loss
+    
+
+def jaccard_similarity(y_pred, y_true, smooth=1e-7):
+    y_pred = y_pred.view(-1)
+    y_true = y_true.view(-1)
+    
+    intersection = (y_pred * y_true).sum()
+    union = y_pred.sum() + y_true.sum() - intersection
+    jaccard = (intersection + smooth) / (union + smooth)
+    
+    return jaccard

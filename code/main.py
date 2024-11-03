@@ -16,17 +16,17 @@ if __name__ == '__main__':
     print(f"Training running on {device}")
     model = UnetModel(model_configs).to(device)
 
-    transform = transforms.Compose([
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
+    # transform = transforms.Compose([
+    #     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    # ])
 
     train_data, val_data, test_data = load_data(
         args.data_dir,
-        transform,
+        None,
         batch_size=training_configs['batch_size'],
         train_ratio=training_configs['train_ratio'],
         val_ratio=training_configs['val_ratio']
     )
 
     model.train(train_data, val_data, training_configs, device)
-    # model.evaluate(test_data, training_configs, device)
+    model.evaluate(test_data, training_configs, device)

@@ -16,7 +16,7 @@ class CottonDataset(Dataset):
         image = self.images[idx]
         mask = self.masks[idx]
 
-        image = torch.tensor(image, dtype=torch.float32).permute(2, 0, 1)
+        image = torch.tensor(image, dtype=torch.float32)
         mask = torch.tensor(mask, dtype=torch.float32)
 
         if self.transform:
