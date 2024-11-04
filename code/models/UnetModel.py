@@ -3,16 +3,22 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 from networks.UnetNetwork import UNet
+from networks.UnetPpNetwork import NestedUNet
+from networks.DeeplabV3Network import DeeplabV3
 from utils.losses import DiceLoss, jaccard_similarity
-import numpy as np
 import matplotlib.pyplot as plt
 
-class UnetModel(nn.Module):
+class SegmentationModel(nn.Module):
 
     def __init__(self, configs):
-        super(UnetModel, self).__init__()
+        super(SegmentationModel, self).__init__()
         self.model_configs = configs
-        self.network = UNet(configs)
+        if self.model_configs["name"] == "UnetPlus":
+            self.network = NestedUNet(configs)
+        elif self.model_configs["name"] == "Deeplabv3":
+            self.network = DeeplabV3(configs)
+        else:
+            self.network = UNet(configs)
         self.criterion = DiceLoss()
         self.optimizer = torch.optim.Adam(self.network.parameters(), lr=configs['learning_rate'], weight_decay=configs['regularization'])
 
@@ -25,6 +31,8 @@ class UnetModel(nn.Module):
         epochs_no_improve = 0
         early_stop = False
 
+        train_losses = []
+        val_losses = []
         for epoch in range(configs["max_epochs"]):
 
             if early_stop:
@@ -62,7 +70,8 @@ class UnetModel(nn.Module):
 
             val_loss = val_loss / len(val_loader)
             print(f"Epoch [{epoch + 1}/{configs['max_epochs']}],  Train Loss: {epoch_loss:.4f}, Validation Loss: {val_loss:.4f}")
-
+            train_losses.append(epoch_loss)
+            val_losses.append(val_loss)
 
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
@@ -78,6 +87,16 @@ class UnetModel(nn.Module):
             if epochs_no_improve >= patience:
                 early_stop = True
                 print("Early stopping triggered.")
+
+        if len(train_losses) > 1:
+            plt.figure(figsize=(10, 5))
+            plt.plot(train_losses, label="Train Loss")
+            plt.plot(val_losses, label="Validation Loss")
+            plt.xlabel("Epochs")
+            plt.ylabel("Loss")
+            plt.title("Train and Validation Loss Over Epochs")
+            plt.legend()
+            plt.savefig("../plots/loss.png", format='png', dpi=300)  
 
     def evaluate(self, test_loader, configs, device):
 
