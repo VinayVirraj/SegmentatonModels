@@ -5,4 +5,4 @@ saved_models
 *.zip
 plots
 *.ipynb
-test
+test*
