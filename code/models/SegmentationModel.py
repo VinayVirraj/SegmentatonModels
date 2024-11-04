@@ -120,4 +120,4 @@ class SegmentationModel(nn.Module):
                     test_jaccard_scores.append(jaccard)
 
         mean_jaccard = sum(test_jaccard_scores) / len(test_jaccard_scores)
-        print("Jaccard similarity score: ", mean_jaccard.item())
+        print("Jaccard similarity score for test set: ", mean_jaccard.item())
